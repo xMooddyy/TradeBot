@@ -3,12 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInventoryPages = exports.getValues = void 0;
 const tslib_1 = require("tslib");
 const bloxy_1 = require("bloxy");
-const config_json_1 = require("../../config.json");
 const lodash_1 = require("lodash");
 const a_djs_handler_1 = require("a-djs-handler");
 const discord_js_1 = require("discord.js");
 const axios_1 = (0, tslib_1.__importDefault)(require("axios"));
-const roblox = new bloxy_1.Client({ credentials: { cookie: config_json_1.ROBLOX_COOKIE.find(c => c.primary === true)?.cookie } });
+const roblox = new bloxy_1.Client();
 const getValues = async (itemIds) => {
     const items = await axios_1.default.get('https://www.rolimons.com/itemapi/itemdetails').then((d) => d.data).catch(() => null);
     if (!items)
@@ -22,8 +21,8 @@ const getValues = async (itemIds) => {
     return toReturn;
 };
 exports.getValues = getValues;
-const getInventoryPages = async (message) => {
-    const inventory = await roblox.apis.inventoryAPI.getUserCollectibles({ userId: roblox.user.id, limit: 100 }).catch(() => null);
+const getInventoryPages = async (client, message) => {
+    const inventory = await client.apis.inventoryAPI.getUserCollectibles({ userId: client.user.id, limit: 100 }).catch(() => null);
     if (!inventory || !inventory.data.length)
         return Promise.reject('There are no collectibles in the account\'s inventory.');
     const chunks = (0, lodash_1.chunk)(inventory.data, 15);
@@ -31,7 +30,7 @@ const getInventoryPages = async (message) => {
     let i = 0;
     const promises = chunks.map(async (inv, index) => {
         const embed = new discord_js_1.MessageEmbed()
-            .setTitle(`${roblox.user.name}'s Inventory`)
+            .setTitle(`${client.user.name}'s Inventory`)
             .setColor(a_djs_handler_1.COLOR_TYPES.INFO)
             .setTimestamp()
             .setFooter(`Page ${index + 1}/${chunks.length} | Requested by ${message?.author.tag ?? 'bot'}`, message?.author.displayAvatarURL({ dynamic: true }) ?? '');

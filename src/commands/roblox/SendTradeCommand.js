@@ -6,7 +6,7 @@ const common_tags_1 = require("common-tags");
 const discord_js_1 = require("discord.js");
 const lodash_1 = (0, tslib_1.__importDefault)(require("lodash"));
 const numeral_1 = (0, tslib_1.__importDefault)(require("numeral"));
-const Roblox_1 = (0, tslib_1.__importStar)(require("../../utils/Roblox"));
+const Roblox_1 = require("../../utils/Roblox");
 const PendingTrades_1 = (0, tslib_1.__importDefault)(require("../../utils/models/PendingTrades"));
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const multiSend = async (embeds, message) => {
@@ -34,19 +34,39 @@ class SendTradeCommand extends a_djs_handler_1.BaseCommand {
         });
     }
     async run(client, message, args) {
-        if (!Roblox_1.default.isLoggedIn())
-            return message.channel.send('You are not logged in to Roblox, use the `switchaccount` or the `addaccount` command to login.');
-        if (!args[0])
-            return message.channel.send('Invalid usage, please provide a username to send a trade request to.');
-        await client.commands.get('switchaccount')?.run(client, message, []);
-        const userId = await Roblox_1.default.getUserIdFromUsername(args[0]).catch(console.error);
+        let userChannel = client.userTextChannels.find(c => c.channelId === message.channel.id && c.guildId === message.guild?.id);
+        if (!userChannel) {
+            const row = new discord_js_1.MessageActionRow()
+                .addComponents(new discord_js_1.MessageSelectMenu()
+                .setCustomId('account-select')
+                .setPlaceholder('Select an account')
+                .addOptions(client.userTextChannels.map(c => ({
+                label: `${c.roblox.user?.name} [${c.roblox.user?.id}]`,
+                value: c.roblox.user.id.toString(),
+            }))));
+            const msg = await message.channel.send({ content: 'Please specify the account you wish to continue with.', components: [row] });
+            const interaction = await msg.awaitMessageComponent({
+                componentType: 'SELECT_MENU',
+                filter: i => i.user.id === message.author.id,
+                time: 60000,
+            }).catch(() => null);
+            if (!interaction)
+                return message.channel.send('Cancelled prompt.');
+            userChannel = client.userTextChannels.find(c => c.roblox.user?.id === Number(interaction.values[0]));
+            if (!userChannel)
+                return;
+            await interaction.update({ content: `Selected account: ${userChannel.roblox.user?.name} [${userChannel.roblox.user?.id}]`, components: [] });
+            await userChannel.updateConfig(message.channel.id, message.guild.id);
+        }
+        const { roblox } = userChannel;
+        const userId = await roblox.getUserIdFromUsername(args[0]).catch(() => null);
         if (!userId)
             return message.channel.send('Could not find a user with that username.');
-        const user = await Roblox_1.default.getUser(userId.id);
+        const user = await roblox.getUser(userId.id);
         if (!(await user.getPremiumMembership()))
             return message.channel.send('That user does not have premium.');
-        const inventory = await Roblox_1.default.apis.inventoryAPI.getUserCollectibles({ userId: Roblox_1.default.user.id, limit: 100 }).catch(console.error);
-        const userInventory = await Roblox_1.default.apis.inventoryAPI.getUserCollectibles({ userId: user.id, limit: 100 }).catch(console.error);
+        const inventory = await roblox.apis.inventoryAPI.getUserCollectibles({ userId: roblox.user.id, limit: 100 }).catch(() => null);
+        const userInventory = await roblox.apis.inventoryAPI.getUserCollectibles({ userId: user.id, limit: 100 }).catch(() => null);
         if (!userInventory || !inventory)
             return message.channel.send('Failed to send trade to user, most likely their inventory is private.');
         const chunks = lodash_1.default.chunk(inventory.data, 10);
@@ -55,7 +75,7 @@ class SendTradeCommand extends a_djs_handler_1.BaseCommand {
         const promises = chunks.map(async (inv) => {
             const embed = new discord_js_1.MessageEmbed()
                 .setColor(a_djs_handler_1.COLOR_TYPES.INFO)
-                .setTitle(`${Roblox_1.default.user.name} Inventory`)
+                .setTitle(`${roblox.user.name} Inventory`)
                 .setFooter(`Requested by ${message.author.tag}`, message.author.displayAvatarURL({ dynamic: true }))
                 .setTimestamp();
             let output = '';
@@ -103,7 +123,7 @@ class SendTradeCommand extends a_djs_handler_1.BaseCommand {
                 return true;
             },
             matchUntil: (m, p) => m.content.toLowerCase() === 'done' && p.values.size >= 1,
-        }).then(coll => coll.map((c) => inventory.data[Number(c.content) - 1])).catch(console.error);
+        }).then(coll => coll.map((c) => inventory.data[Number(c.content) - 1])).catch(() => null);
         if (!itemsToSend)
             return;
         const chunks2 = lodash_1.default.chunk(userInventory.data, 10);
@@ -160,7 +180,7 @@ class SendTradeCommand extends a_djs_handler_1.BaseCommand {
                 return true;
             },
             matchUntil: (m, p) => m.content.toLowerCase() === 'done' && p.values.size >= 1,
-        }).then(coll => coll.map((c) => userInventory.data[Number(c.content) - 1])).catch(console.error);
+        }).then(coll => coll.map((c) => userInventory.data[Number(c.content) - 1])).catch(() => null);
         if (!itemsToReceive)
             return;
         if (itemsToSend.some(c => c.assetId === 19027209))
@@ -197,13 +217,13 @@ class SendTradeCommand extends a_djs_handler_1.BaseCommand {
             componentType: 'BUTTON',
             filter: (int) => int.user.id === message.author.id,
             time: 120000
-        }).catch(console.error);
+        }).catch(() => null);
         if (!confirm)
             return message.channel.send('Cancelled prompt.');
         if (confirm.customId === 'no')
             return confirm.update({ components: [], content: 'Cancelled prompt.' });
         await confirm.update({ components: [] });
-        const trade = await Roblox_1.default.apis.tradesAPI.sendTrade({
+        const trade = await roblox.apis.tradesAPI.sendTrade({
             offers: [
                 {
                     userId: user.id,
@@ -211,12 +231,12 @@ class SendTradeCommand extends a_djs_handler_1.BaseCommand {
                     userAssetIds: itemsToReceive.map(c => c.userAssetId),
                 },
                 {
-                    userId: Roblox_1.default.user.id,
+                    userId: roblox.user.id,
                     robux: 0,
                     userAssetIds: itemsToSend.map(c => c.userAssetId),
                 }
             ],
-        }).catch(console.error);
+        }).catch(() => null);
         if (!trade)
             return message.channel.send('Failed to send trade, this is most likely because their trades are turned off.');
         await message.channel.send(`Successfully sent a trade to ${user.name} [${user.id}].`);
@@ -226,6 +246,7 @@ class SendTradeCommand extends a_djs_handler_1.BaseCommand {
             guildId: message.guild.id,
             tradeId: trade.id,
             embed: JSON.stringify(embed.toJSON()),
+            robloxUsername: roblox.user.name
         });
     }
 }

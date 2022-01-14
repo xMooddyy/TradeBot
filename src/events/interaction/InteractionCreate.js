@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const tslib_1 = require("tslib");
 const Trades_1 = (0, tslib_1.__importDefault)(require("../../utils/models/Trades"));
-const Roblox_1 = (0, tslib_1.__importStar)(require("../../utils/Roblox"));
+const Roblox_1 = require("../../utils/Roblox");
 const a_djs_handler_1 = require("a-djs-handler");
 const discord_js_1 = require("discord.js");
 class InteractionCreate extends a_djs_handler_1.BaseEvent {
@@ -14,14 +14,15 @@ class InteractionCreate extends a_djs_handler_1.BaseEvent {
             return;
         if (interaction.isSelectMenu()) {
             const trade = await Trades_1.default.findOne({ where: { guildId: interaction.guildId, channelId: interaction.channelId, messageId: interaction.message.id } });
+            const currentUser = handler.client.userTextChannels.find(e => e.guildId === interaction.guildId && e.channelId === interaction.channelId);
             if (trade && handler.options.owners?.includes(interaction.user.id)) {
                 switch (interaction.values[0]) {
                     case 'accept': {
-                        await Roblox_1.default.apis.tradesAPI.acceptTrade({ tradeId: trade.trade.id }).catch(() => null);
+                        await currentUser?.roblox.apis.tradesAPI.acceptTrade({ tradeId: trade.trade.id }).catch(() => null);
                         break;
                     }
                     case 'deny': {
-                        await Roblox_1.default.apis.tradesAPI.declineTrade({ tradeId: trade.trade.id }).catch(() => null);
+                        await currentUser?.roblox.apis.tradesAPI.declineTrade({ tradeId: trade.trade.id }).catch(() => null);
                         break;
                     }
                     case 'cancel': {
@@ -36,7 +37,7 @@ class InteractionCreate extends a_djs_handler_1.BaseEvent {
                     return interaction.update({ content: 'Cancelled prompt.', components: [], embeds: [embed] });
                 await interaction.update({ content: `Successfully ${interaction.values[0] === 'accept' ? 'accepted' : 'declined'} this trade.`, components: [], embeds: [embed] });
                 await trade.destroy();
-                const embeds = await (0, Roblox_1.getInventoryPages)();
+                const embeds = await (0, Roblox_1.getInventoryPages)(currentUser.roblox);
                 if (embeds.length === 1) {
                     await interaction.channel?.send({ embeds: [embeds[0].content] });
                 }

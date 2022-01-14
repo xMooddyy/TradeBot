@@ -7,7 +7,7 @@ const GuildSettings_1 = (0, tslib_1.__importDefault)(require("../../utils/models
 const cooldowns = new discord_js_1.Collection();
 class MessageEvent extends a_djs_handler_1.BaseEvent {
     constructor() {
-        super('message');
+        super('messageCreate');
     }
     async run(handler, message) {
         if (message.author.bot)
@@ -16,7 +16,6 @@ class MessageEvent extends a_djs_handler_1.BaseEvent {
         if (await handler.listenForPrompts(message))
             return;
         const res = await GuildSettings_1.default.findOne({ where: { guildId: message.guild?.id ?? '' } }) || { prefix: process.env.BOT_PREFIX };
-        console.log(message.content);
         const prefixMention = new RegExp(`^<@!?${client.user?.id}> `);
         const prefix = message.content.match(prefixMention) ? message.content.match(prefixMention)?.[0] : res.prefix;
         if (message.content.startsWith(prefix)) {
@@ -51,7 +50,7 @@ class MessageEvent extends a_djs_handler_1.BaseEvent {
             catch (error) {
                 if (error instanceof a_djs_handler_1.PromptError)
                     return;
-                console.error(error);
+                client.logger.error(error);
                 message.channel.send(`An error occured while executing this command! Report this to the bot owner: \`${error}\``);
             }
         }

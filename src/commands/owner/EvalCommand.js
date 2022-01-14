@@ -62,7 +62,7 @@ class EvalCommand extends a_djs_handler_1.BaseCommand {
             }
         }
         catch (e) {
-            console.error(e);
+            client.logger.error(e);
             await message.channel.send(`Error while evaluating: \`${e}\``);
         }
     }

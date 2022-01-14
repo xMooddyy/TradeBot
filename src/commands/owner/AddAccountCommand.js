@@ -7,6 +7,7 @@ const Roblox_1 = (0, tslib_1.__importDefault)(require("../../utils/Roblox"));
 const config_json_1 = (0, tslib_1.__importDefault)(require("../../../config.json"));
 const fs_nextra_1 = require("fs-nextra");
 const common_tags_1 = require("common-tags");
+const UserTextChannel_1 = (0, tslib_1.__importDefault)(require("../../utils/UserTextChannel"));
 class AddAccountCommand extends a_djs_handler_1.BaseCommand {
     constructor() {
         super({
@@ -23,7 +24,6 @@ class AddAccountCommand extends a_djs_handler_1.BaseCommand {
     async run(client, message, args) {
         if (!args[0])
             return message.channel.send('Please provide a valid Roblox cookie.');
-        const currentUser = config_json_1.default.ROBLOX_COOKIE.find(c => c.primary === true);
         const user = await Roblox_1.default.login(args[0]).catch(() => null);
         if (!user)
             return message.channel.send('Invalid cookie provided.');
@@ -60,22 +60,22 @@ class AddAccountCommand extends a_djs_handler_1.BaseCommand {
             await Roblox_1.default.login();
             return message.channel.send('Cancelled prompt.');
         }
-        if (confirm.customId === 'no') {
-            await Roblox_1.default.login(currentUser?.cookie).catch(() => null);
+        if (confirm.customId === 'no')
             return confirm.update({ embeds: [], components: [], content: 'Cancelled prompt.' });
-        }
         await confirm.deferReply();
-        if (!(await user.getPremiumMembership())) {
-            await Roblox_1.default.login(currentUser?.cookie).catch(() => null);
+        if (!(await user.getPremiumMembership()))
             return message.channel.send('This account is not a premium member.');
-        }
-        if (config_json_1.default.ROBLOX_COOKIE.find(c => c.username === user.name))
+        if (config_json_1.default.users.find(c => c.username === user.name))
             return message.channel.send('That account already exists.');
-        if (currentUser)
-            currentUser.primary = false;
-        config_json_1.default.ROBLOX_COOKIE.push({ cookie: args[0], username: user.name, primary: true });
+        config_json_1.default.users.push({ cookie: args[0], username: user.name, channelId: '', guildId: '' });
         await (0, fs_nextra_1.writeJSON)('./config.json', config_json_1.default);
-        await confirm.editReply('Successfully added the account and set it to primary.');
+        client.userTextChannels.push(new UserTextChannel_1.default({
+            channelId: '',
+            client,
+            cookie: args[0],
+            guildId: '',
+        }));
+        await confirm.editReply('Successfully added the account.');
     }
 }
 exports.default = AddAccountCommand;

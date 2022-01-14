@@ -22,6 +22,12 @@ let PendingTrades = class PendingTrades extends sequelize_typescript_1.Model {
         type: sequelize_typescript_1.DataType.STRING,
     }),
     (0, tslib_1.__metadata)("design:type", String)
+], PendingTrades.prototype, "robloxUsername", void 0);
+(0, tslib_1.__decorate)([
+    (0, sequelize_typescript_1.Column)({
+        type: sequelize_typescript_1.DataType.STRING,
+    }),
+    (0, tslib_1.__metadata)("design:type", String)
 ], PendingTrades.prototype, "guildId", void 0);
 (0, tslib_1.__decorate)([
     (0, sequelize_typescript_1.Column)({

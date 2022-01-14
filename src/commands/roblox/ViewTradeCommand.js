@@ -4,7 +4,7 @@ const tslib_1 = require("tslib");
 const a_djs_handler_1 = require("a-djs-handler");
 const common_tags_1 = require("common-tags");
 const discord_js_1 = require("discord.js");
-const Roblox_1 = (0, tslib_1.__importStar)(require("../../utils/Roblox"));
+const Roblox_1 = require("../../utils/Roblox");
 const numeral_1 = (0, tslib_1.__importDefault)(require("numeral"));
 class ViewTradeCommand extends a_djs_handler_1.BaseCommand {
     constructor() {
@@ -18,14 +18,38 @@ class ViewTradeCommand extends a_djs_handler_1.BaseCommand {
         });
     }
     async run(client, message, args) {
-        await client.commands.get('switchaccount')?.run(client, message, []);
+        let userChannel = client.userTextChannels.find(c => c.channelId === message.channel.id && c.guildId === message.guild?.id);
+        if (!userChannel) {
+            const row = new discord_js_1.MessageActionRow()
+                .addComponents(new discord_js_1.MessageSelectMenu()
+                .setCustomId('account-select')
+                .setPlaceholder('Select an account')
+                .addOptions(client.userTextChannels.map(c => ({
+                label: `${c.roblox.user?.name} [${c.roblox.user?.id}]`,
+                value: c.roblox.user.id.toString(),
+            }))));
+            const msg = await message.channel.send({ content: 'Please specify the account you wish to continue with.', components: [row] });
+            const interaction = await msg.awaitMessageComponent({
+                componentType: 'SELECT_MENU',
+                filter: i => i.user.id === message.author.id,
+                time: 60000,
+            }).catch(() => null);
+            if (!interaction)
+                return message.channel.send('Cancelled prompt.');
+            userChannel = client.userTextChannels.find(c => c.roblox.user?.id === Number(interaction.values[0]));
+            if (!userChannel)
+                return;
+            await interaction.update({ content: `Selected account: ${userChannel.roblox.user?.name} [${userChannel.roblox.user?.id}]`, components: [] });
+            await userChannel.updateConfig(message.channel.id, message.guild.id);
+        }
+        const { roblox } = userChannel;
         if (!args[0] || Number.isNaN(Number(args[0])))
             return message.channel.send('Please provide a valid trade ID.');
-        const trade = await Roblox_1.default.apis.tradesAPI.getTrade({ tradeId: Number(args[0]) }).catch(() => null);
+        const trade = await roblox.apis.tradesAPI.getTrade({ tradeId: Number(args[0]) }).catch(() => null);
         if (!trade || !trade.isActive)
             return message.channel.send('That trade does not exist or is no longer active.');
-        const requested = trade.offers.find(c => c.user.id === Roblox_1.default.user?.id);
-        const offer = trade.offers.find(c => c.user.id !== Roblox_1.default.user?.id);
+        const requested = trade.offers.find(c => c.user.id === roblox.user?.id);
+        const offer = trade.offers.find(c => c.user.id !== roblox.user?.id);
         const requestedValues = await (0, Roblox_1.getValues)(requested.userAssets.map(c => c.assetId));
         const offerValues = await (0, Roblox_1.getValues)(offer.userAssets.map(c => c.assetId));
         if (requested.userAssets.some(c => c.assetId === 19027209))
@@ -50,7 +74,7 @@ class ViewTradeCommand extends a_djs_handler_1.BaseCommand {
             ${requested.userAssets.map(c => `${c.name} - ${(0, numeral_1.default)(c.value).format('0,0')} RS`).join('\n')}
 
             **Total Value:** ${(0, numeral_1.default)(requested.userAssets.reduce((prev, val) => prev + val.value, 0)).format('0,0')} RS`)
-            .setFooter(`Trade ID: ${trade.id} | ${Roblox_1.default.user?.name}`, message.author.displayAvatarURL({ dynamic: true }));
+            .setFooter(`Trade ID: ${trade.id} | ${roblox.user?.name}`, message.author.displayAvatarURL({ dynamic: true }));
         const confirmationRow = new discord_js_1.MessageActionRow()
             .addComponents([
             new discord_js_1.MessageSelectMenu()
@@ -74,17 +98,17 @@ class ViewTradeCommand extends a_djs_handler_1.BaseCommand {
             return confirm.update({ content: 'Cancelled prompt.', components: [], embeds: [] });
         switch (confirm.values[0]) {
             case 'accept':
-                await Roblox_1.default.apis.tradesAPI.acceptTrade({ tradeId: trade.id }).catch(() => null);
+                await roblox.apis.tradesAPI.acceptTrade({ tradeId: trade.id }).catch(() => null);
                 break;
             case 'deny':
-                await Roblox_1.default.apis.tradesAPI.declineTrade({ tradeId: trade.id }).catch(() => null);
+                await roblox.apis.tradesAPI.declineTrade({ tradeId: trade.id }).catch(() => null);
                 break;
         }
         const newEmbed = new discord_js_1.MessageEmbed(embed)
             .setTitle(`[${confirm.values[0] === 'accept' ? 'ACCEPTED' : confirm.values[0] === 'deny' ? 'DENIED' : 'CANCELLED'}] Trade with ${trade.user.name} [${trade.user.id}]`)
             .setColor(confirm.values[0] === 'accept' ? a_djs_handler_1.COLOR_TYPES.SUCCESS : confirm.values[0] === 'deny' ? a_djs_handler_1.COLOR_TYPES.DANGER : a_djs_handler_1.COLOR_TYPES.WARN);
         await confirm.update({ content: `Successfully ${confirm.values[0] === 'accept' ? 'accepted' : 'declined'} this trade.`, components: [], embeds: [newEmbed] });
-        const embeds = await (0, Roblox_1.getInventoryPages)(message);
+        const embeds = await (0, Roblox_1.getInventoryPages)(roblox, message);
         if (embeds.length === 1) {
             await message.channel.send({ embeds: [embeds[0].content] });
         }
