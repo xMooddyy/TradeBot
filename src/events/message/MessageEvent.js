@@ -50,7 +50,7 @@ class MessageEvent extends a_djs_handler_1.BaseEvent {
             catch (error) {
                 if (error instanceof a_djs_handler_1.PromptError)
                     return;
-                client.logger.error(error);
+                console.error(error);
                 message.channel.send(`An error occured while executing this command! Report this to the bot owner: \`${error}\``);
             }
         }

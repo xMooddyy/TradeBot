@@ -69,12 +69,15 @@ class AddAccountCommand extends a_djs_handler_1.BaseCommand {
             return message.channel.send('That account already exists.');
         config_json_1.default.users.push({ cookie: args[0], username: user.name, channelId: '', guildId: '' });
         await (0, fs_nextra_1.writeJSON)('./config.json', config_json_1.default);
-        client.userTextChannels.push(new UserTextChannel_1.default({
+				const userTextChannel = new UserTextChannel_1.default({
             channelId: '',
             client,
             cookie: args[0],
             guildId: '',
-        }));
+        });
+
+        client.userTextChannels.push(userTextChannel);
+				await userTextChannel.init();
         await confirm.editReply('Successfully added the account.');
     }
 }
