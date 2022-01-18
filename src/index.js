@@ -5,6 +5,7 @@ const path_1 = (0, tslib_1.__importDefault)(require("path"));
 const a_djs_handler_1 = require("a-djs-handler");
 const discord_js_1 = require("discord.js");
 const config_json_1 = require("../config.json");
+const app = require('express')();
 const Database_1 = (0, tslib_1.__importDefault)(require("./utils/Database"));
 const async_queue_1 = require("@sapphire/async-queue");
 require("./utils/string.extensions");
@@ -30,8 +31,14 @@ client.logger = (0, winston_1.createLogger)({
         format: 'MM-DD-YYYY HH:mm:ss'
     }), winston_1.format.colorize(), winston_1.format.printf(info => `[${info.timestamp}] ${info.level.toProperCase()}: ${info.message}`)),
 });
+
+app.get('/', (req, res) => {
+	res.status(200).send('Hi');
+});
+
 (async () => {
     await Database_1.default.authenticate().then(() => client.logger.info('Connected to DB.'));
     await Database_1.default.sync();
     await handler.start();
+		await app.listen(8080);
 })();
