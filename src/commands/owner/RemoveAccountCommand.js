@@ -37,6 +37,8 @@ class RemoveAccountCommand extends a_djs_handler_1.BaseCommand {
             }).then(m => m.content).catch(() => null);
             if (!username)
                 return;
+            const user = client.userTextChannels.find(c => c.roblox.user?.name?.toLowerCase() === username.toLowerCase());
+            await user.unInit();
             lodash_1.default.pullAllBy(config_json_1.default.users, [{ username }], 'username');
             client.userTextChannels.splice(client.userTextChannels.findIndex(c => c.roblox.user?.name?.toLowerCase() === username.toLowerCase()), 1);
             await (0, fs_nextra_1.writeJSON)('./config.json', config_json_1.default);
@@ -45,6 +47,8 @@ class RemoveAccountCommand extends a_djs_handler_1.BaseCommand {
         else {
             if (!config_json_1.default.users.find(c => c.username === args[0]))
                 return message.channel.send('That account is not in the list, this is case-sensitive.');
+            const user = client.userTextChannels.find(c => c.roblox.user?.name?.toLowerCase() === args[0].toLowerCase());
+            await user.unInit();
             lodash_1.default.pullAllBy(config_json_1.default.users, [{ username: args[0] }], 'username');
             client.userTextChannels.splice(client.userTextChannels.findIndex(c => c.roblox.user?.name?.toLowerCase() === args[0].toLowerCase()), 1);
             await (0, fs_nextra_1.writeJSON)('./config.json', config_json_1.default);
